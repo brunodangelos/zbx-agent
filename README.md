@@ -1,2 +1,2 @@
 # zbx-agent
-Instalação Zabbix Agent via ansible para linux
+Instalação Zabbix Agent via ansible para os linux
