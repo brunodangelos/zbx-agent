@@ -1,0 +1,5 @@
+---
+- hosts: []
+  tasks:
+   - name: 'Checagem Sistema Operacional'
+     debug: msg={{ansible_distribution}}-{{ansible_distribution_version}}
