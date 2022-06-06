@@ -80,6 +80,7 @@
     state: present
   when: (ansible_distribution == "RedHat" and ansible_distribution_major_version => "8")
 
+#Altera arquivo zabbix agent2 com novos parametros
 - name: 'Altera arquivo zabbix.agent2.conf'
   replace:
        path: /etc/zabbix/zabbix_agent2.conf
@@ -92,8 +93,10 @@
       #{ regex: '^\#HostnameItem\=system\.hostname$', value: 'HostnameItem=system.hostname' }
   become: yes
 
+#Reinicia o serviço
 - name: 'Reinicia o serviço do zabbix agent'
   ansible.builtin.service:
         name: zabbix-agent2
         state: restarted
+        enabled: yes
   become: yes
