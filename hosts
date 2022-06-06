@@ -1,0 +1,8 @@
+[FRU]
+192.168.0.1 #SQLSERVER
+192.168.6.5 #ORACLE
+
+
+
+[FRU:vars]
+ansible_ssh_keys = id_pub
