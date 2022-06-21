@@ -1,102 +1,97 @@
 ---
-#Validações SO
-- name: Variavel de sistema operacional
-  shell: lsb_release -si | tr 'A-Z' 'a-z'
-  register: SO
-  when: ansible_os_family == "Debian"
+- hosts: [lab]
+  vars:
+        zbxserver : '192.168.2.131'
+        listenport : '10055'
+        hostname : 'bp-aws.app.prd.v.{{hip.stdout}}'
 
-- name: Variavel da versao do sistema operacional Debian like
-  shell: lsb_release -sc
-  register: SOVERSIONDEB
-  when: ansible_os_family == "Debian"
+  tasks:
+      #Verificações do S.O
+      - name: "Nome da maquina"
+        shell: hostname | tr 'A-Z' 'a-z'
+        register: hname
 
-- name: Variavel da versao do sistema operacional RedHat like
-  shell: lsb_release -sc
-  register: SOVERSIONEL
-  when: ansible_os_family == "RedHat"
+      - name: "IP"
+        shell: hostname -I | awk '{print $2}'
+        register: hip
 
-- name: Variavel do nome da maquina
-  shell: hostname | tr 'A-Z' 'a-z'
-  register: hname
+      #Instala repositorio zabbix
+      - name: "Instala repositorio zabbix 5 Debian"
+        apt:
+            deb: https://repo.zabbix.com/zabbix/5.0/{{ansible_distribution}}/pool/main/z/zabbix-release/zabbix-release_5.0-1+{{ansible_distribution_version}}_all.deb
+            force: yes
+            state: present
+        become: yes
+        when: (ansible_os_family == "Debian" or ansible_os_family == "Ubuntu")
 
-- name: Variavel IP
-  shell: hostname -I | awk '{print $1}'
-  register: hip
+      - name: "Instala o repositorio do zabbix 5 RedHat"
+        yum:
+            name: "https://repo.zabbix.com/zabbix/5.0/rhel/{{ ansible_distribution_major_version }}/x86_64/zabbix-release-5.0-1.el{{ ansible_distribution_major_version }}.noarch.rpm"
+            state: present
+            validate_certs: no
+        become: yes
+        when: (ansible_distribution == "RedHat")
 
-#Baixando biblioteca zabbix
-- name: Baixar biblioteca Zabbix-Agent 5.0 Debian Like
-  apt:
-      deb: https://repo.zabbix.com/zabbix/5.0/"{{ SO.stdout }}"/pool/main/z/zabbix-release/zabbix-release_5.0-1+"{{ SOVERSIONDEB.stdout }}"_all.deb
-  become: yes
-  when: ansible_os_family == "Debian"
+      #Atualizando os pacotes
+      - name: "Atualiza os pacotes Delian"
+        apt:
+          upgrade: no
+          update_cache: yes
+          cache_valid_time: 86400 #One day
+        become: yes
+        when: (ansible_os_family == "Debian" or ansible_os_family == "Ubuntu")
 
-- name: Baixar biblioteca Zabbix-Agent 5.0 RedHat até versão 7
-  yum:
-       rpm: https://repo.zabbix.com/zabbix/5.0/rhel/"{{ SOVERSIONEL.stdout }}"/x86_64/zabbix-release-5.0-1.el"{{ SOVERSIONEL.stdout }}".noarch.rpm
-  become: yes
-  when: (ansible_distribution == "RedHat" and ansible_distribution_major_version <= "7")
+      - name: "Atualiza os pacotes RedHat até versão 7"
+        become: yes
+        shell: yum clean all
+        when: (ansible_distribution == "RedHat" and ansible_distribution_major_version <= "7")
 
-- name: Baixar biblioteca Zabbix-Agent 5.0 RedHat apatir versão 8
-  dnf:
-       rpm: https://repo.zabbix.com/zabbix/5.0/rhel/"{{ SOVERSIONEL.stdout }}"/x86_64/zabbix-release-5.0-1.el"{{ SOVERSIONEL.stdout }}".noarch.rpm
-  become: yes
-  when: (ansible_distribution == "RedHat" and ansible_distribution_major_version => "8")
+      - name: "Atualiza os pacotes RedHat a partir versão 8"
+        become: yes
+        shell: dnf clean all
+        when: (ansible_distribution == "RedHat" and ansible_distribution_major_version >= "8")
 
-#Atualizando os pacotes
-- name: Atualiza os pacotes Delian like
-  apt:
-    upgrade: no
-    update_cache: yes
-    cache_valid_time: 86400 #One day
-  become: yes
-  when: ansible_os_family == "Debian"
+      #Instalação do zabbix agent
+      - name: "Install agent-zabbix 2 Debian"
+        apt:
+          name: zabbix-agent2
+          state: present
+        when: (ansible_os_family == "Debian" or ansible_os_family == "Ubuntu")
+        become: yes
 
-- name: Atualiza os pacotes RedHat até versão 7
-  become: yes
-  shell: yum clean all
-  when: (ansible_distribution == "RedHat" and ansible_distribution_major_version <= "7")
+      - name: "Install agent-zabbix 2 RedHat < 7"
+        yum:
+          name: zabbix-agent2
+          state: present
+        when: (ansible_distribution == "RedHat" and ansible_distribution_major_version <= "7")
+        become: yes
 
-- name: Atualiza os pacotes RedHat a partir versão 8
-  become: yes
-  shell: dnf clean all
-  when: (ansible_distribution == "RedHat" and ansible_distribution_major_version <= "7")
+      - name: "Install agent-zabbix 2 RedHat > 7"
+        dnf:
+          name: zabbix-agent2
+          state: present
+        when: (ansible_distribution == "RedHat" and ansible_distribution_major_version >= "8")
+        become: yes
 
-#Instalação do zabbix agent
-- name: Install agent-zabbix 2 Debian Like
-  apt:
-    name: zabbix-agent2
-    state: present
-  when: ansible_os_family == "Debian"
+      #Altera arquivo zabbix agent2 com novos parametros
+      - name: "Altera arquivo zabbix.agent2.conf"
+        replace:
+            path: /etc/zabbix/zabbix_agent2.conf
+            regexp: "{{ item.regex }}"
+            replace: "{{ item.value }}"
+        with_items:
+            - { regex: '^\#\ ListenPort\=10050$', value: 'ListenPort={{listenport}}' }
+            - { regex: '^Server\=127\.0\.0\.1$', value: 'Server={{zbxserver}}' }
+            - { regex: '^ServerActive\=127\.0\.0\.1$', value: 'ServerActive={{zbxserver}}' }
+            - { regex: '^Hostname\=Zabbix server$', value: 'Hostname=bp-aws.app.prd.v.{{hip.stdout}}' }
+            #- { regex: '^Hostname\=Zabbix server$', value: 'Hostname={{hostname}}' }
+            #{ regex: '^\#HostnameItem\=system\.hostname$', value: 'HostnameItem=system.hostname' }
+        become: yes
 
-- name: Install agent-zabbix 2 RedHat < 7 Like
-  yum:
-    name: zabbix-agent2
-    state: present
-  when: (ansible_distribution == "RedHat" and ansible_distribution_major_version <= "7")
-
-- name: Install agent-zabbix 2 RedHat > 7  Like
-  dnf:
-    name: zabbix-agent2
-    state: present
-  when: (ansible_distribution == "RedHat" and ansible_distribution_major_version => "8")
-
-#Altera arquivo zabbix agent2 com novos parametros
-- name: 'Altera arquivo zabbix.agent2.conf'
-  replace:
-       path: /etc/zabbix/zabbix_agent2.conf
-       regexp: "{{ item.regex }}"
-       replace: "{{ item.value }}"
-  with_items:
-      - { regex: '^Server\=127\.0\.0\.1$', value: 'Server=192.168.2.145' }
-      - { regex: '^ServerActive\=127\.0\.0\.1$', value: 'ServerActive=192.168.2.145' }
-      - { regex: '^Hostname\=Zabbix server$', value: 'Hostname="{{hname.stdout}}"' }
-      #{ regex: '^\#HostnameItem\=system\.hostname$', value: 'HostnameItem=system.hostname' }
-  become: yes
-
-#Reinicia o serviço
-- name: 'Reinicia o serviço do zabbix agent'
-  ansible.builtin.service:
-        name: zabbix-agent2
-        state: restarted
-        enabled: yes
-  become: yes
+      #Adiciona na inicilização
+      - name: "Adiciona o serviço do zabbix agent2 para inicialização automatica e reinicia o serviço"
+        ansible.builtin.service:
+              name: zabbix-agent2
+              state: restarted
+              enabled: yes
+        become: yes

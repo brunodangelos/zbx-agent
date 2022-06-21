@@ -1,0 +1,17 @@
+[lab]
+192.168.2.66
+192.168.2.67
+192.168.2.68
+192.168.2.69
+192.168.2.70
+192.168.2.71
+192.168.2.72
+192.168.2.73
+
+
+
+[lab:vars]
+ansible_user=vagrant
+ansible_password=vagrant
+#ansible_ssh_keys = id_pub
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'

@@ -1,5 +1,5 @@
 ---
-- hosts: []
+- hosts: [lab]
   tasks:
    - name: 'Checagem Sistema Operacional'
-     debug: msg={{ansible_distribution}}-{{ansible_distribution_version}}
+     debug: msg={{ansible_distribution}}-{{ansible_distribution_version}}-{{ ansible_facts['distribution_major_version']}}
