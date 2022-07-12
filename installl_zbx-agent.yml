@@ -3,7 +3,7 @@
   vars:
         zbxserver : '192.168.2.131'
         listenport : '10055'
-        hostname : 'bp-aws.app.prd.v.{{hip.stdout}}'
+        hostname : 'bp.{{hip.stdout}}'
 
   tasks:
       #Verificações do S.O
