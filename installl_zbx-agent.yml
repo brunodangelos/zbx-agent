@@ -1,17 +1,12 @@
 ---
-- hosts: [lab]
-  vars:
-        zbxserver : '192.168.2.131'
-        listenport : '10055'
-        hostname : 'bp-aws.app.prd.v.{{hip.stdout}}'
-
+- hosts: []
   tasks:
       #Verificações do S.O
-      - name: "Nome da maquina"
+      - name: "Busca o nome da maquina"
         shell: hostname | tr 'A-Z' 'a-z'
         register: hname
 
-      - name: "IP"
+      - name: "Busca o IP"
         shell: hostname -I | awk '{print $2}'
         register: hip
 
@@ -19,58 +14,58 @@
       - name: "Instala repositorio zabbix 5 Debian"
         apt:
             deb: https://repo.zabbix.com/zabbix/5.0/{{ansible_distribution}}/pool/main/z/zabbix-release/zabbix-release_5.0-1+{{ansible_distribution_version}}_all.deb
-            force: yes
             state: present
         become: yes
-        when: (ansible_os_family == "Debian" or ansible_os_family == "Ubuntu")
+        when: (ansible_os_family == "Debian")
 
       - name: "Instala o repositorio do zabbix 5 RedHat"
         yum:
             name: "https://repo.zabbix.com/zabbix/5.0/rhel/{{ ansible_distribution_major_version }}/x86_64/zabbix-release-5.0-1.el{{ ansible_distribution_major_version }}.noarch.rpm"
             state: present
             validate_certs: no
+            disable_gpg_check: yes
         become: yes
-        when: (ansible_distribution == "RedHat")
+        when: (ansible_os_family == "RedHat")
 
       #Atualizando os pacotes
-      - name: "Atualiza os pacotes Delian"
+      - name: "Atualiza os pacotes Debian"
         apt:
           upgrade: no
           update_cache: yes
           cache_valid_time: 86400 #One day
         become: yes
-        when: (ansible_os_family == "Debian" or ansible_os_family == "Ubuntu")
+        when: (ansible_os_family == "Debian")
 
       - name: "Atualiza os pacotes RedHat até versão 7"
         become: yes
         shell: yum clean all
-        when: (ansible_distribution == "RedHat" and ansible_distribution_major_version <= "7")
+        when: (ansible_distribution_major_version <= "7" and ansible_os_family == "RedHat")
 
       - name: "Atualiza os pacotes RedHat a partir versão 8"
         become: yes
         shell: dnf clean all
-        when: (ansible_distribution == "RedHat" and ansible_distribution_major_version >= "8")
+        when: (ansible_distribution_major_version >= "8" and ansible_os_family == "RedHat")
 
       #Instalação do zabbix agent
       - name: "Install agent-zabbix 2 Debian"
         apt:
           name: zabbix-agent2
           state: present
-        when: (ansible_os_family == "Debian" or ansible_os_family == "Ubuntu")
+        when: (ansible_os_family == "Debian")
         become: yes
 
       - name: "Install agent-zabbix 2 RedHat < 7"
         yum:
           name: zabbix-agent2
           state: present
-        when: (ansible_distribution == "RedHat" and ansible_distribution_major_version <= "7")
+        when: (ansible_distribution_major_version < "8" and ansible_os_family == "RedHat")
         become: yes
 
       - name: "Install agent-zabbix 2 RedHat > 7"
         dnf:
           name: zabbix-agent2
           state: present
-        when: (ansible_distribution == "RedHat" and ansible_distribution_major_version >= "8")
+        when: (ansible_distribution_major_version > "7" and ansible_os_family == "RedHat")
         become: yes
 
       #Altera arquivo zabbix agent2 com novos parametros
@@ -83,8 +78,8 @@
             - { regex: '^\#\ ListenPort\=10050$', value: 'ListenPort={{listenport}}' }
             - { regex: '^Server\=127\.0\.0\.1$', value: 'Server={{zbxserver}}' }
             - { regex: '^ServerActive\=127\.0\.0\.1$', value: 'ServerActive={{zbxserver}}' }
-            - { regex: '^Hostname\=Zabbix server$', value: 'Hostname=bp-aws.app.prd.v.{{hip.stdout}}' }
-            #- { regex: '^Hostname\=Zabbix server$', value: 'Hostname={{hostname}}' }
+            #- { regex: '^Hostname\=Zabbix server$', value: 'Hostname=bp-aws.app.prd.v.{{hip.stdout}}' }
+            - { regex: '^Hostname\=Zabbix server$', value: 'Hostname={{hostname}}' }
             #{ regex: '^\#HostnameItem\=system\.hostname$', value: 'HostnameItem=system.hostname' }
         become: yes
 
