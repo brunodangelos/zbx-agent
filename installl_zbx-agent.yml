@@ -1,5 +1,14 @@
 ---
+<<<<<<< HEAD
 - hosts: []
+=======
+- hosts: [lab]
+  vars:
+        zbxserver : '192.168.2.131'
+        listenport : '10055'
+        hostname : 'bp.{{hip.stdout}}'
+
+>>>>>>> a471348fc6808a59990ec2e3bed67e3fb9334973
   tasks:
       #Verificações do S.O
       - name: "Busca o nome da maquina"
