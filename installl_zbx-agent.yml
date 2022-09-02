@@ -1,9 +1,5 @@
 ---
-- hosts: [lab]
-  vars:
-        zbxserver : '192.168.2.131'
-        listenport : '10055'
-        hostname : 'bp.{{hip.stdout}}'
+- hosts: [GROUP]
   tasks:
       #Verificações do S.O
       - name: "Busca o nome da maquina"
@@ -72,25 +68,25 @@
         when: (ansible_distribution_major_version > "7" and ansible_os_family == "RedHat")
         become: yes
 
-      #Altera arquivo zabbix agent2 com novos parametros
+      # #Altera arquivo zabbix agent2 com novos parametros
       - name: "Altera arquivo zabbix.agent2.conf"
         replace:
-            path: /etc/zabbix/zabbix_agent2.conf
-            regexp: "{{ item.regex }}"
-            replace: "{{ item.value }}"
+              path: /etc/zabbix/zabbix_agent2.conf
+              regexp: "{{ item.regex }}"
+              replace: "{{ item.value }}"
         with_items:
-            - { regex: '^\#\ ListenPort\=10050$', value: 'ListenPort={{listenport}}' }
-            - { regex: '^Server\=127\.0\.0\.1$', value: 'Server={{zbxserver}}' }
-            - { regex: '^ServerActive\=127\.0\.0\.1$', value: 'ServerActive={{zbxserver}}' }
-            #- { regex: '^Hostname\=Zabbix server$', value: 'Hostname=bp-aws.app.prd.v.{{hip.stdout}}' }
-            - { regex: '^Hostname\=Zabbix server$', value: 'Hostname={{hostname}}' }
-            #{ regex: '^\#HostnameItem\=system\.hostname$', value: 'HostnameItem=system.hostname' }
+               - { regex: '^\#\ ListenPort\=10050$', value: 'ListenPort={{listenport}}' }
+               - { regex: '^Server\=127\.0\.0\.1$', value: 'Server={{zbxserver}}' }
+               - { regex: '^ServerActive\=127\.0\.0\.1$', value: 'ServerActive={{zbxserver}}' }
+               #- { regex: '^Hostname\=Zabbix server$', value: 'Hostname=bp-aws.app.prd.v.{{hip.stdout}}' }
+               - { regex: '^Hostname\=Zabbix.*$', value: 'Hostname={{hostname}}' }
+               #{ regex: '^\#HostnameItem\=system\.hostname$', value: 'HostnameItem=system.hostname' }
         become: yes
 
-      #Adiciona na inicilização
+      # # #Adiciona na inicilização
       - name: "Adiciona o serviço do zabbix agent2 para inicialização automatica e reinicia o serviço"
         ansible.builtin.service:
-              name: zabbix-agent2
-              state: restarted
-              enabled: yes
+               name: zabbix-agent2
+               state: restarted
+               enabled: yes
         become: yes
